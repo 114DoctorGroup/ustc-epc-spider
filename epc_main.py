@@ -120,6 +120,7 @@ def order(course_params: str):
     course_path = root_site + '/' + course_params
     res = s.post(course_path,book_form)
     succeed= not '操作失败' in res.text
+    global available_hours
     if(succeed):
         # TODO: add support for 1 point courses
         available_hours -= 2
@@ -131,12 +132,14 @@ def cancel(cancel_params: str):
     course_path = root_site + '/' + cancel_params
     res = s.post(course_path,cancel_form)
     succeed= not '操作失败' in res.text
+    global available_hours
     if(succeed):
         # TODO: add support for 1 point courses
         available_hours += 2
     return succeed
 
 def smart_order(course_params: str):
+    global available_hours
     if(available_hours == 1):
         print('Now we don\'t consider 1 point course.')
         return
