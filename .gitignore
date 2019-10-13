@@ -1,1 +1,4 @@
 **/config.json
+checkcode/**
+checkcode.png
+__pycache__/**
