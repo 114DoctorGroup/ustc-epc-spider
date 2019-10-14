@@ -11,6 +11,8 @@ with open('config.json') as f:
 js = json.loads(json_str)
 stuid = js['stuno']
 passwd = js['passwd']
+order_flag = js['enable.order']
+replace_flag = js['enable.replace']
 
 root_site = 'http://epc.ustc.edu.cn'
 main_site = 'http://epc.ustc.edu.cn/main.asp'
@@ -144,15 +146,18 @@ def smart_order(course_params: str):
         print('Now we don\'t consider 1 point course.')
         return
     if(available_hours>=2):
+        print('可用预约学时足够，直接选课')
         if(order(course_params)):
             return True
         else:
             return False
-    else:
+    elif(replace_flag):
         # we're NOT considering the score being ONE!
+        print('正在换课， 将退课程：'+str(earliest_dt)+' '+earliest_name)
         if(not cancel(earliest_params)):
             return False
         if(available_hours>=2):
+            print('正在选课...')
             if(order(course_params)):
                 return True
             else:
@@ -163,6 +168,8 @@ def smart_order(course_params: str):
                 else:
                     print('Roll back succeed.')
                 return False
+    else:
+        print('可用预约学时不足')
 
 #--- test part
 # Only print for situational dialog.
@@ -173,14 +180,14 @@ while True:
         res = check_earliest_course(s, page+'&isall=some')
         print(str(res[0]), end='\t', flush=True)
         if(res[1]<earliest_dt):
-            print('发现可替代课程：'+str(res[1])+' 已选课程：'+str(earliest_dt)+' '+earliest_name)
-            print('正在换课...')
-            if(smart_order(res[2])):
-                print('换课成功！')
-                exit(0)
-            else:
-                print('换课失败')
-                exit(0)
+            print('发现更早的可替代课程：'+str(res[1]))
+            if(order_flag):
+                if(smart_order(res[2])):
+                    print('换课成功！')
+                    exit(0)
+                else:
+                    print('换课失败')
+                    exit(0)
     print('')
             # if(not r[0] and r[1]=='Order Failed'):
             #     print('换课失败，且已退课，正在尝试回滚')
