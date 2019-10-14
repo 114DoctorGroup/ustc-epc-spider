@@ -13,6 +13,7 @@ stuid = js['stuno']
 passwd = js['passwd']
 order_flag = js['enable.order']
 replace_flag = js['enable.replace']
+order_week_beforeequal = js['order_week_beforeequal']
 
 root_site = 'http://epc.ustc.edu.cn'
 main_site = 'http://epc.ustc.edu.cn/main.asp'
@@ -179,7 +180,9 @@ while True:
     for page in [topical_discus_page, debate_page, drama_page]:
         res = check_earliest_course(s, page+'&isall=some')
         print(str(res[0]), end='\t', flush=True)
-        if(res[1]<earliest_dt):
+        case1 = res[0] <= order_week_beforeequal and order_week_beforeequal>0
+        case2 = order_week_beforeequal==0 and res[1]<earliest_dt
+        if(case1 or case2):
             print('发现更早的可替代课程：'+str(res[1]))
             if(order_flag):
                 if(smart_order(res[2])):

@@ -12,5 +12,6 @@
     "enable.situational_dialog" : false,
     "enable.topical_discuss" : true,
     "enable.debate" : true,
-    "enable.drama" : true
+    "enable.drama" : true,
+    "order_week_beforeequal": 8
 }
