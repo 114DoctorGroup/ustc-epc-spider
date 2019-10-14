@@ -15,6 +15,8 @@ order_flag = js['enable.order']
 replace_flag = js['enable.replace']
 order_week_beforeequal = js['order_week_beforeequal']
 
+enable_array = [js['enable.situational_dialog'], js['enable.topical_discuss'], js['enable.debate'], js['enable.drama']]
+
 root_site = 'http://epc.ustc.edu.cn'
 main_site = 'http://epc.ustc.edu.cn/main.asp'
 
@@ -98,7 +100,7 @@ def check_study_hours(s):
 
 available_hours, earliest_dt, earliest_params, earliest_name = check_study_hours(s)
 
-print('Situ(1)\tTopic(2)\tDebate(2)\tDrama(2)')
+print('Situ(1)\tTopi(2)\tDeba(2)\tDrama(2)')
 
 old_state = [0,0,0,0]
 
@@ -175,9 +177,12 @@ def smart_order(course_params: str):
 #--- test part
 # Only print for situational dialog.
 while True:
-    situational_res = check_earliest_course(s,situational_dlg_page+'&isall=some')
-    print(str(situational_res[0]), end='\t', flush=True)
-    for page in [topical_discus_page, debate_page, drama_page]:
+    #situational_res = check_earliest_course(s,situational_dlg_page+'&isall=some')
+    #print(str(situational_res[0]), end='\t', flush=True)
+    for i, page in enumerate([situational_dlg_page, topical_discus_page, debate_page, drama_page]):
+        if(not enable_array[i]):
+            print('', end='\t')
+            continue
         res = check_earliest_course(s, page+'&isall=some')
         print(str(res[0]), end='\t', flush=True)
         case1 = res[0] <= order_week_beforeequal and order_week_beforeequal>0
