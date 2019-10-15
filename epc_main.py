@@ -2,11 +2,10 @@ import requests
 import re
 import json
 from os import system
-from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timedelta
 
 json_str = ''
-with open('config.json') as f:
+with open('config.json', encoding = 'utf-8') as f:
     json_str = f.read()
 js = json.loads(json_str)
 stuid = js['stuno']
@@ -15,7 +14,7 @@ order_flag = js['enable.order']
 replace_flag = js['enable.replace']
 order_week_beforeequal = js['order_week_beforeequal']
 replace_scandidate = js['replace_candidate']
-
+banned_time = js['banned_time']
 enable_array = [js['enable.situational_dialog'], js['enable.topical_discuss'], js['enable.debate'], js['enable.drama']]
 
 root_site = 'http://epc.ustc.edu.cn'
@@ -66,10 +65,15 @@ else:
     exit()
 
 course_form_patt = re.compile(r'(<form action="(m_practice.asp\?second_id.*?)".*?</form>)', re.DOTALL)
+course_form_patt2 = re.compile(r'<form action="m_practice.asp\?second_id.*?".*?</form>', re.DOTALL)
 form_tag_patt = re.compile('(<form action="(.*?)".*?</form>)', re.DOTALL)
 td_tag_patt = re.compile('<td.*?</td>',re.DOTALL)
 datetime_patt = re.compile(r'(\d+)/(\d+)/(\d+)<br>(\d+):(\d+)-')
 name_in_td_patt = re.compile(r'<td.*?<a href.*?>(.*?)</a></td>')
+week_patt = re.compile(r'<td align="center">第(\d+)周</td>')
+weekday_patt = re.compile(r'<td align="center">周(\S)</td>')
+
+class_type = ["Situational Dialogue", "Topical Discussion", "Debate", "Drama"]
 
 # First, check study hours
 def check_study_hours(s):
@@ -82,7 +86,7 @@ def check_study_hours(s):
     available_hours = 4 - planned_hours
 
     # Check the earliest course that has been planned
-    candidate_dt = None
+    candidate_dt = datetime.now() + timedelta(days = 365) # 默认时间为明年同一天，标识未选上任何课程
     candidate_params = None
     candidate_name = None
 
@@ -92,34 +96,25 @@ def check_study_hours(s):
         dt_match = datetime_patt.search(td_list[6])
         dt = datetime(int(dt_match.group(1)),int(dt_match.group(2)),int(dt_match.group(3)),int(dt_match.group(4)),int(dt_match.group(5)))
         planned = '预约中' in td_list[9]
-        if len(replace_scandidate)>0:
+        if len(replace_scandidate) > 0:
             nm = name_in_td_patt.search(td_list[0]).group(1)
             if(planned and replace_scandidate in nm):
                 candidate_dt, candidate_params, candidate_name = dt, form[1], nm
             else:
                 continue
-        elif planned and (candidate_dt is None or dt<candidate_dt):
-            candidate_dt = dt
-            candidate_params = form[1]
-            candidate_name = name_in_td_patt.search(td_list[0]).group(1)
-    if(candidate_name is None):
-        print('No course candidate found, fall back to the first course')
-        td_list = td_tag_patt.findall(form[0])
-        dt_match = datetime_patt.search(td_list[6])
-        dt = datetime(int(dt_match.group(1)),int(dt_match.group(2)),int(dt_match.group(3)),int(dt_match.group(4)),int(dt_match.group(5)))
-        candidate_dt, candidate_params, candidate_name = dt, form[1], name_in_td_patt.search(td_list[0]).group(1)
-    else:
-        print('Course candidate to be replaced: '+candidate_name+' at '+str(candidate_dt))
+        elif planned :
+            if candidate_params is None: # 当前还没有替换对象
+                candidate_dt = dt
+                candidate_params = form[1]
+                candidate_name = name_in_td_patt.search(td_list[0]).group(1)
+            elif dt > candidate_dt: # 用时间最晚的来作为替换对象
+                candidate_dt = dt
+                candidate_params = form[1]
+                candidate_name = name_in_td_patt.search(td_list[0]).group(1)
+            else:
+                pass
+            
     return available_hours, candidate_dt, candidate_params, candidate_name
-
-available_hours, candidate_dt, candidate_params, candidate_name = check_study_hours(s)
-
-print('Situ(1)\tTopi(2)\tDeba(2)\tDrama(2)')
-
-old_state = [0,0,0,0]
-
-week_patt = re.compile(r'<td align="center">第(\d+)周</td>')
-
 
 def check_earliest_course(s:requests.Session, page_url:str):
     # TODO: return course params and a datetime obj
@@ -129,9 +124,43 @@ def check_earliest_course(s:requests.Session, page_url:str):
     course_params = course_form_patt.search(page_raw).group(2)
     course_form = course_form_patt.search(page_raw).group(1)
     td_list = td_tag_patt.findall(course_form)
+
     dt_match = datetime_patt.search(td_list[5])
     dt = datetime(int(dt_match.group(1)),int(dt_match.group(2)),int(dt_match.group(3)),int(dt_match.group(4)),int(dt_match.group(5)))
-    return [earliest_week, dt, course_params]
+
+    weekday_patt = re.compile(r'<td align="center">周(\S)</td>')
+    weekday = weekday_patt.search(td_list[2]).group(1)
+
+    return [earliest_week, dt, course_params, weekday]
+
+def find_alternative(s:requests.Session, page_url:str, type_code:int):
+    page_raw = s.get(page_url+'&isall=some').text
+
+    all_course_form = course_form_patt2.findall(page_raw)
+    
+    for course_form in all_course_form:
+        course_params = course_form_patt.search(course_form).group(2)
+        td_list = td_tag_patt.findall(course_form)
+    
+        dt_match = datetime_patt.search(td_list[5])
+        dt = datetime(int(dt_match.group(1)),int(dt_match.group(2)),int(dt_match.group(3)),int(dt_match.group(4)),int(dt_match.group(5)))
+    
+        weekday = weekday_patt.search(td_list[2]).group(1)
+
+        course = [dt, course_params, weekday]
+
+        if "预约时间未到" in course_form: # 预约时间未到
+            break
+        elif "您已经预约过该时间段的课程" in course_form \
+            or "已选择过该教师与话题相同的课程，不能重复选择" in course_form \
+            or "取 消" in course_form:
+            pass
+        elif is_wanted_dt(course, class_type[type_code]): # find the first(earliest) course in this type
+            return course
+        else:
+            pass
+
+    return None
 
 def order(course_params: str):
     book_form = {'submit_type':'book_submit',
@@ -139,10 +168,6 @@ def order(course_params: str):
     course_path = root_site + '/' + course_params
     res = s.post(course_path,book_form)
     succeed= not '操作失败' in res.text
-    global available_hours
-    if(succeed):
-        # TODO: add support for 1 point courses
-        available_hours -= 2
     return succeed
 
 def cancel(cancel_params: str):
@@ -189,64 +214,47 @@ def smart_order(course_params: str):
     else:
         print('可用预约学时不足')
 
+def is_wanted_dt(course: tuple, type) :
+    course_date_str = '周' + course[2]
+    
+    if course[0].hour == 8 or course[0].hour == 9:
+        course_date_str += '上午'
+    if course[0].hour == 14:
+        course_date_str += '下午'
+    if course[0].hour == 19:
+        course_date_str += '晚上'
+
+    if course_date_str in banned_time :
+        print(type + " " + str(course[0]) + "(" + course_date_str + ")" + ":时间需求不满足")
+        return False
+    else :
+        return True
+
+print('Situ(1)\tTopi(2)\tDeba(2)\tDrama(2)')
+
 #--- test part
 # Only print for situational dialog.
 while True:
-    #situational_res = check_earliest_course(s,situational_dlg_page+'&isall=some')
-    #print(str(situational_res[0]), end='\t', flush=True)
+    available_hours, candidate_dt, candidate_params, candidate_name = check_study_hours(s)
+    best_dt = candidate_dt
+    best_course = None
     for i, page in enumerate([situational_dlg_page, topical_discus_page, debate_page, drama_page]):
         if(not enable_array[i]):
-            print('', end='\t')
             continue
-        res = check_earliest_course(s, page+'&isall=some')
-        print(str(res[0]), end='\t', flush=True)
-        case1 = res[0] <= order_week_beforeequal and order_week_beforeequal>0
-        case2 = order_week_beforeequal==0 and res[1]<candidate_dt
-        if(case1 or case2):
-            print('发现更早的可替代课程：'+str(res[1]))
-            if(order_flag):
-                if(smart_order(res[2])):
-                    print('换课成功！')
-                    exit(0)
-                else:
-                    print('换课失败')
-                    exit(0)
-    print('')
-            # if(not r[0] and r[1]=='Order Failed'):
-            #     print('换课失败，且已退课，正在尝试回滚')
 
-            # elif(not r[0] and r[1]=='Cancel Failed'):
-            #     print('换课失败，但未退课')
-            # elif(r[0]):
-            #     print('换课成功')
+        res = find_alternative(s, page+'&isall=some', i)
 
+        if res is not None:
+            if best_course is None or res[0] < best_dt: # best_course还没找到或者找到一个更好的课
+                best_dt = res[0]
+                best_course = res[1]
+            else:
+                pass
+    
+    if(order_flag and best_course is not None and best_dt.day < candidate_dt.day):
+        print('发现最早的可替代课程：' + str(best_dt))
+        if(smart_order(best_course)):
+            print('换课成功\n')
+        else:
+            print('换课失败!\n')
 #--------------
-
-while True:
-    situatioinal_str = s.get(situational_dlg_page+'&isall=some').text
-    situational_week = int(week_patt.search(situatioinal_str).group(1))
-    print(str(situational_week), end='\t', flush=True)
-    if(situational_week<old_state[0]):
-        #send email
-        pass
-    topical_str = s.get(topical_discus_page+'&isall=some').text
-    topical_week = int(week_patt.search(topical_str).group(1))
-    print(str(topical_week), end='\t\t', flush=True)
-    if(topical_week<old_state[1]):
-        #send email
-        pass
-    debate_str = s.get(debate_page+'&isall=some').text
-    debate_week = int(week_patt.search(debate_str).group(1))
-    print(str(debate_week), end='\t', flush=True)
-    if(debate_week<old_state[2]):
-        #send email
-        pass
-    drama_week = int(week_patt.search(s.get(drama_page+'&isall=some').text).group(1))
-    print(str(drama_week), flush=True)
-    if(drama_week<old_state[3]):
-        #send email
-        pass
-    old_state = [situational_week, topical_week, debate_week, drama_week]
-pass
-
-
