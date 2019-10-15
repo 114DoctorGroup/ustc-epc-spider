@@ -14,6 +14,7 @@ passwd = js['passwd']
 order_flag = js['enable.order']
 replace_flag = js['enable.replace']
 order_week_beforeequal = js['order_week_beforeequal']
+replace_scandidate = js['replace_candidate']
 
 enable_array = [js['enable.situational_dialog'], js['enable.topical_discuss'], js['enable.debate'], js['enable.drama']]
 
@@ -81,9 +82,9 @@ def check_study_hours(s):
     available_hours = 4 - planned_hours
 
     # Check the earliest course that has been planned
-    earliest_dt = None
-    earliest_params = None
-    earliest_name = None
+    candidate_dt = None
+    candidate_params = None
+    candidate_name = None
 
     form_list_raw = form_tag_patt.findall(status_raw)[1::] # remove the first form, which is not a course
     for form in form_list_raw:
@@ -91,14 +92,20 @@ def check_study_hours(s):
         dt_match = datetime_patt.search(td_list[6])
         dt = datetime(int(dt_match.group(1)),int(dt_match.group(2)),int(dt_match.group(3)),int(dt_match.group(4)),int(dt_match.group(5)))
         planned = '预约中' in td_list[9]
-        if planned and (earliest_dt is None or dt<earliest_dt):
-            earliest_dt = dt
-            earliest_params = form[1]
-            earliest_name = name_in_td_patt.search(td_list[0]).group(1)
-    print('Course candidate to be replaced: '+earliest_name+' at '+str(earliest_dt))
-    return available_hours, earliest_dt, earliest_params, earliest_name
+        if len(replace_scandidate)>0:
+            nm = name_in_td_patt.search(td_list[0]).group(1)
+            if(planned and replace_scandidate in nm):
+                candidate_dt, candidate_params, candidate_name = dt, form[1], nm
+            else:
+                continue
+        elif planned and (candidate_dt is None or dt<candidate_dt):
+            candidate_dt = dt
+            candidate_params = form[1]
+            candidate_name = name_in_td_patt.search(td_list[0]).group(1)
+    print('Course candidate to be replaced: '+candidate_name+' at '+str(candidate_dt))
+    return available_hours, candidate_dt, candidate_params, candidate_name
 
-available_hours, earliest_dt, earliest_params, earliest_name = check_study_hours(s)
+available_hours, candidate_dt, candidate_params, candidate_name = check_study_hours(s)
 
 print('Situ(1)\tTopi(2)\tDeba(2)\tDrama(2)')
 
@@ -156,8 +163,8 @@ def smart_order(course_params: str):
             return False
     elif(replace_flag):
         # we're NOT considering the score being ONE!
-        print('正在换课， 将退课程：'+str(earliest_dt)+' '+earliest_name)
-        if(not cancel(earliest_params)):
+        print('正在换课， 将退课程：'+str(candidate_dt)+' '+candidate_name)
+        if(not cancel(candidate_params)):
             return False
         if(available_hours>=2):
             print('正在选课...')
@@ -166,7 +173,7 @@ def smart_order(course_params: str):
             else:
                 # first roll back
                 print('Failed. Rolling back...')
-                if(not order(earliest_params)):
+                if(not order(candidate_params)):
                     print('Roll back failed!')
                 else:
                     print('Roll back succeed.')
@@ -186,7 +193,7 @@ while True:
         res = check_earliest_course(s, page+'&isall=some')
         print(str(res[0]), end='\t', flush=True)
         case1 = res[0] <= order_week_beforeequal and order_week_beforeequal>0
-        case2 = order_week_beforeequal==0 and res[1]<earliest_dt
+        case2 = order_week_beforeequal==0 and res[1]<candidate_dt
         if(case1 or case2):
             print('发现更早的可替代课程：'+str(res[1]))
             if(order_flag):

@@ -13,5 +13,6 @@
     "enable.topical_discuss" : true,
     "enable.debate" : true,
     "enable.drama" : true,
-    "order_week_beforeequal": 8
+    "order_week_beforeequal": 8,
+    "replace_candidate": "City Growth"
 }
