@@ -102,7 +102,14 @@ def check_study_hours(s):
             candidate_dt = dt
             candidate_params = form[1]
             candidate_name = name_in_td_patt.search(td_list[0]).group(1)
-    print('Course candidate to be replaced: '+candidate_name+' at '+str(candidate_dt))
+    if(candidate_name is None):
+        print('No course candidate found, fall back to the first course')
+        td_list = td_tag_patt.findall(form[0])
+        dt_match = datetime_patt.search(td_list[6])
+        dt = datetime(int(dt_match.group(1)),int(dt_match.group(2)),int(dt_match.group(3)),int(dt_match.group(4)),int(dt_match.group(5)))
+        candidate_dt, candidate_params, candidate_name = dt, form[1], name_in_td_patt.search(td_list[0]).group(1)
+    else:
+        print('Course candidate to be replaced: '+candidate_name+' at '+str(candidate_dt))
     return available_hours, candidate_dt, candidate_params, candidate_name
 
 available_hours, candidate_dt, candidate_params, candidate_name = check_study_hours(s)
@@ -173,7 +180,8 @@ def smart_order(course_params: str):
             else:
                 # first roll back
                 print('Failed. Rolling back...')
-                if(not order(candidate_params)):
+                candidate_params_order = candidate_params.replace('record_book.asp','m_practice.asp')
+                if(not order(candidate_params_order)):
                     print('Roll back failed!')
                 else:
                     print('Roll back succeed.')
