@@ -14,7 +14,8 @@ passwd = js['passwd']
 order_flag = js['enable.order']
 replace_flag = js['enable.replace']
 order_week_beforeequal = js['order_week_beforeequal']
-replace_scandidate = js['replace_candidate']
+replace_candidate = js['replace.candidate']
+replaec_forbidden = js['replace.forbidden']
 
 enable_array = [js['enable.situational_dialog'], js['enable.topical_discuss'], js['enable.debate'], js['enable.drama']]
 
@@ -92,9 +93,9 @@ def check_study_hours(s):
         dt_match = datetime_patt.search(td_list[6])
         dt = datetime(int(dt_match.group(1)),int(dt_match.group(2)),int(dt_match.group(3)),int(dt_match.group(4)),int(dt_match.group(5)))
         planned = '预约中' in td_list[9]
-        if len(replace_scandidate)>0:
+        if len(replace_candidate)>0:
             nm = name_in_td_patt.search(td_list[0]).group(1)
-            if(planned and replace_scandidate in nm):
+            if(planned and replace_candidate in nm):
                 candidate_dt, candidate_params, candidate_name = dt, form[1], nm
             else:
                 continue
