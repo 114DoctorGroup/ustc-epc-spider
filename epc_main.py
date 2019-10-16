@@ -30,6 +30,19 @@ drama_page = 'http://epc.ustc.edu.cn/m_practice.asp?second_id=2004'
 nleft_page = 'http://epc.ustc.edu.cn/n_left.asp'
 record_page = 'http://epc.ustc.edu.cn/record_book.asp'
 
+class Course:
+    def __init__(self, params, start_time: datetime, name: str, score: int, week: int):
+        self.params = params
+        self.week = week
+        self.datetime = start_time
+        self.name = name
+        self.score = score
+    
+    
+selected_courses = []
+# TODO: maintain selected_courses in order, cancel
+# TODO: add check_duplicate
+
 # visit the site and get cookies
 default_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.75 Safari/537.36'
                     }
@@ -69,11 +82,14 @@ else:
 course_form_patt = re.compile(r'(<form action="(m_practice.asp\?second_id.*?)".*?</form>)', re.DOTALL)
 form_tag_patt = re.compile('(<form action="(.*?)".*?</form>)', re.DOTALL)
 td_tag_patt = re.compile('<td.*?</td>',re.DOTALL)
+td_content_patt = re.compile('<td.*?>(.*?)</td>',re.DOTALL)
 datetime_patt = re.compile(r'(\d+)/(\d+)/(\d+)<br>(\d+):(\d+)-')
 name_in_td_patt = re.compile(r'<td.*?<a href.*?>(.*?)</a></td>')
 
 # First, check study hours
+# Refresh selected_course
 def check_study_hours(s):
+    selected_courses.clear()
     s.cookies.set('querytype','all')
     res = s.get(record_page)
     status_raw = res.text
@@ -93,8 +109,12 @@ def check_study_hours(s):
         dt_match = datetime_patt.search(td_list[6])
         dt = datetime(int(dt_match.group(1)),int(dt_match.group(2)),int(dt_match.group(3)),int(dt_match.group(4)),int(dt_match.group(5)))
         planned = '预约中' in td_list[9]
+        nm = name_in_td_patt.search(td_list[0]).group(1)
+        # score = int(td_content_patt.search(td_list[2]).group(1))
+        week  = int(td_content_patt.search(td_list[4]).group(1))
+        # add to course list first
+        selected_courses.append(Course(form[1], dt, nm, 2, week))
         if len(replace_candidate)>0:
-            nm = name_in_td_patt.search(td_list[0]).group(1)
             if(planned and replace_candidate in nm):
                 candidate_dt, candidate_params, candidate_name = dt, form[1], nm
             else:
@@ -103,6 +123,7 @@ def check_study_hours(s):
             candidate_dt = dt
             candidate_params = form[1]
             candidate_name = name_in_td_patt.search(td_list[0]).group(1)
+    #TODO: code here is WRONG
     if(candidate_name is None):
         print('No course candidate found, fall back to the first course')
         td_list = td_tag_patt.findall(form[0])
@@ -121,6 +142,8 @@ old_state = [0,0,0,0]
 
 week_patt = re.compile(r'<td align="center">第(\d+)周</td>')
 
+def check_unfull_courses(s:requests.Session, page_url:str):
+    pass
 
 def check_earliest_course(s:requests.Session, page_url:str):
     # TODO: return course params and a datetime obj
@@ -130,9 +153,16 @@ def check_earliest_course(s:requests.Session, page_url:str):
     course_params = course_form_patt.search(page_raw).group(2)
     course_form = course_form_patt.search(page_raw).group(1)
     td_list = td_tag_patt.findall(course_form)
+    course_name = name_in_td_patt.search(td_list[0]).group(1)
     dt_match = datetime_patt.search(td_list[5])
     dt = datetime(int(dt_match.group(1)),int(dt_match.group(2)),int(dt_match.group(3)),int(dt_match.group(4)),int(dt_match.group(5)))
-    return [earliest_week, dt, course_params]
+    return [earliest_week, dt, course_params, course_name]
+
+def course_duplicate(name:str):
+    for c in selected_courses:
+        if name in c.name:
+            return True
+    return False
 
 def order(course_params: str):
     book_form = {'submit_type':'book_submit',
@@ -201,9 +231,10 @@ while True:
             continue
         res = check_earliest_course(s, page+'&isall=some')
         print(str(res[0]), end='\t', flush=True)
+        duplicate = course_duplicate(res[3])
         case1 = res[0] <= order_week_beforeequal and order_week_beforeequal>0
         case2 = order_week_beforeequal==0 and res[1]<candidate_dt
-        if(case1 or case2):
+        if(not duplicate and (case1 or case2)):
             print('发现更早的可替代课程：'+str(res[1]))
             if(order_flag):
                 if(smart_order(res[2])):
