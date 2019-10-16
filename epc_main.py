@@ -94,7 +94,7 @@ def check_study_hours(s):
     status_raw = res.text
     all_hours = int(re.search(r'已预约的交流英语学时:(\d+)', status_raw).group(1))
     studied_hours  = int(re.search(r'已获得的交流英语学时:(\d+)', status_raw).group(1))
-    disobey_hours = int(re.search(r'预约未上的交流英语学时:(\d+)', status_raw).group(1))
+    disobey_hours = int(re.search(r'预约未上的交流英语学时：(\d+)', status_raw).group(1))
     planned_hours = all_hours - studied_hours - disobey_hours # not greater than 4
     available_hours = 4 - planned_hours
 
