@@ -2,7 +2,6 @@ import requests
 import re
 import json
 from os import system
-from bs4 import BeautifulSoup
 from datetime import datetime
 
 json_str = ''
