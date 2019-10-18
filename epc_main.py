@@ -15,6 +15,7 @@ replace_flag = js['enable.replace']
 order_week_beforeequal = js['order_week_beforeequal']
 replace_candidate = js['replace.candidate']
 replaec_forbidden = js['replace.forbidden']
+verbose_mode = js['verbose']
 
 enable_array = [js['enable.situational_dialog'], js['enable.topical_discuss'], js['enable.debate'], js['enable.drama']]
 
@@ -258,10 +259,12 @@ while True:
     #print(str(situational_res[0]), end='\t', flush=True)
     for i, page in enumerate([situational_dlg_page, topical_discus_page, debate_page, drama_page]):
         if(not enable_array[i]):
-            print('', end='\t')
+            if verbose_mode:
+                print('', end='\t')
             continue
         res = check_earliest_course(s, page+'&isall=some')
-        print(str(res[0]), end='\t', flush=True)
+        if verbose_mode:
+            print(str(res[0]), end='\t', flush=True)
         duplicate = course_duplicate(res[3])
         case1 = res[0] <= order_week_beforeequal and order_week_beforeequal>0
         case2 = order_week_beforeequal==0 and res[1]<candidate_dt
@@ -277,7 +280,8 @@ while True:
                     else:
                         print('换课失败')
                         exit(0)
-    print('')
+    if verbose_mode:
+        print('')
             # if(not r[0] and r[1]=='Order Failed'):
             #     print('换课失败，且已退课，正在尝试回滚')
 

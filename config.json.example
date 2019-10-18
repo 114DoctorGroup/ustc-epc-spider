@@ -7,6 +7,7 @@
     "sender.mailserver": "发送邮件的邮件服务器 需要自己查询。outlook是：smtp-mail.outlook.com:587",
     "receiver.user": "用于接受邮件提醒的邮箱账号",
 
+    "verbose" : true,
     "enable.order" : true,
     "enable.replace" : false,
     "enable.situational_dialog" : false,
