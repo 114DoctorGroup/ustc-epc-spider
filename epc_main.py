@@ -131,7 +131,8 @@ def check_study_hours(s):
                     candidate = Course(form[1],dt,nm,2,week)
                 else:
                     continue
-            elif planned and (candidate is None or dt<candidate.start_time):
+            # By default, choose the latest as the candidate
+            elif planned and (candidate is None or dt>candidate.start_time):
                 candidate_dt = dt
                 candidate_params = form[1]
                 candidate_name = name_in_td_patt.search(td_list[0]).group(1)
@@ -155,6 +156,8 @@ print('Situ(1)\tTopi(2)\tDeba(2)\tDrama(2)')
 old_state = [0,0,0,0]
 
 week_patt = re.compile(r'<td align="center">第(\d+)周</td>')
+
+order_msg_patt = re.compile(r'<tr><td colspan="2" style="padding-left:20px; padding-right:20px;color:#000000; font-weight:bold;">\s*(.*?)\s*</td', re.DOTALL)
 
 def check_unfull_courses(s:requests.Session, page_url:str):
     pass
@@ -184,12 +187,19 @@ def order(course_params: str):
     course_path = root_site + '/' + course_params
     res = s.post(course_path,book_form)
     succeed= not '操作失败' in res.text
+    with open('log.txt','w') as f:
+        f.write(res.text)
+    operation_msg = None
+    try:
+        operation_msg = order_msg_patt.search(res.text).group(1)
+    except Exception:
+        print('Operation message parse failed.')
     #TODO: add msg here
     global available_hours
     if(succeed):
         # TODO: add support for 1 point courses
         available_hours -= 2
-    return succeed
+    return succeed, operation_msg
 
 def cancel(cancel_params: str):
     cancel_form = {'submit_type':'book_cancel',
@@ -211,9 +221,11 @@ def smart_order(course_params: str):
         return
     if(available_hours>=2):
         print('可用预约学时足够，直接选课')
-        if(order(course_params)):
+        order_res = order(course_params)
+        if(order_res[0]):
             return True
         else:
+            print('选课失败，原因：'+order_res[1])
             return False
     elif(replace_flag):
         # we're NOT considering the score being ONE!
@@ -222,16 +234,19 @@ def smart_order(course_params: str):
             return False
         if(available_hours>=2):
             print('正在选课...')
-            if(order(course_params)):
+            order_res = order(course_params)
+            if(order_res[0]):
                 return True
             else:
                 # first roll back
-                print('Failed. Rolling back...')
+                print('选课失败，原因：' + order_res)
+                print('正在回滚...')
                 candidate_params_order = candidate_params.replace('record_book.asp','m_practice.asp')
-                if(not order(candidate_params_order)):
-                    print('Roll back failed!')
+                rb_res = order(candidate_params_order)
+                if(not rb_res[0]):
+                    print('回滚失败! 原因：'+rb_res[1])
                 else:
-                    print('Roll back succeed.')
+                    print('回滚成功.')
                 return False
     else:
         print('可用预约学时不足')
@@ -250,15 +265,18 @@ while True:
         duplicate = course_duplicate(res[3])
         case1 = res[0] <= order_week_beforeequal and order_week_beforeequal>0
         case2 = order_week_beforeequal==0 and res[1]<candidate_dt
-        if(not duplicate and (case1 or case2)):
-            print('发现更早的可替代课程：'+str(res[1]))
-            if(order_flag):
-                if(smart_order(res[2])):
-                    print('换课成功！')
-                    exit(0)
-                else:
-                    print('换课失败')
-                    exit(0)
+        if(case1 or case2):
+            if(duplicate):
+                print('发现更早的可替代课程：'+str(res[1])+',但这门课已经上过')
+            else:
+                print('发现更早的可替代课程：'+str(res[1]))
+                if(order_flag):
+                    if(smart_order(res[2])):
+                        print('换课成功！')
+                        exit(0)
+                    else:
+                        print('换课失败')
+                        exit(0)
     print('')
             # if(not r[0] and r[1]=='Order Failed'):
             #     print('换课失败，且已退课，正在尝试回滚')
