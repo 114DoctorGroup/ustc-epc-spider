@@ -33,7 +33,7 @@ class Course:
     def __init__(self, params, start_time: datetime, name: str, score: int, week: int):
         self.params = params
         self.week = week
-        self.datetime = start_time
+        self.start_time = start_time
         self.name = name
         self.score = score
     
@@ -99,30 +99,44 @@ def check_study_hours(s):
     available_hours = 4 - planned_hours
 
     # Check the earliest course that has been planned
+    candidate = None
+    candidate_courses = []
     candidate_dt = None
     candidate_params = None
     candidate_name = None
 
     form_list_raw = form_tag_patt.findall(status_raw)[1::] # remove the first form, which is not a course
     for form in form_list_raw:
-        td_list = td_tag_patt.findall(form[0])
-        dt_match = datetime_patt.search(td_list[6])
-        dt = datetime(int(dt_match.group(1)),int(dt_match.group(2)),int(dt_match.group(3)),int(dt_match.group(4)),int(dt_match.group(5)))
-        planned = '预约中' in td_list[9]
-        nm = name_in_td_patt.search(td_list[0]).group(1)
-        # score = int(td_content_patt.search(td_list[2]).group(1))
-        week  = int(td_content_patt.search(td_list[4]).group(1))
-        # add to course list first
-        selected_courses.append(Course(form[1], dt, nm, 2, week))
-        if len(replace_candidate)>0:
-            if(planned and replace_candidate in nm):
-                candidate_dt, candidate_params, candidate_name = dt, form[1], nm
-            else:
-                continue
-        elif planned and (candidate_dt is None or dt<candidate_dt):
-            candidate_dt = dt
-            candidate_params = form[1]
-            candidate_name = name_in_td_patt.search(td_list[0]).group(1)
+        try:
+            td_list = td_tag_patt.findall(form[0])
+            dt_match = datetime_patt.search(td_list[6])
+            dt = datetime(int(dt_match.group(1)),int(dt_match.group(2)),int(dt_match.group(3)),int(dt_match.group(4)),int(dt_match.group(5)))
+            planned = '预约中' in td_list[9]
+            nm = name_in_td_patt.search(td_list[0]).group(1)
+            # skip if score is non digit
+            score = int(td_content_patt.search(td_list[2]).group(1))
+            week  = int(td_content_patt.search(td_list[4]).group(1))
+        except Exception as e:
+            print('Parse error. The item is ignored.')
+            print(str(e))
+        else:
+            # add to selected_courses first
+            c = Course(form[1], dt, nm, score, week)
+            selected_courses.append(c)
+            if(c.name != replaec_forbidden):
+                candidate_courses.append(c)
+            if len(replace_candidate)>0:
+                if(planned and replace_candidate in nm):
+                    candidate_dt, candidate_params, candidate_name = dt, form[1], nm
+                    candidate = Course(form[1],dt,nm,2,week)
+                else:
+                    continue
+            elif planned and (candidate is None or dt<candidate.start_time):
+                candidate_dt = dt
+                candidate_params = form[1]
+                candidate_name = name_in_td_patt.search(td_list[0]).group(1)
+                candidate = Course(form[1],dt,nm,score,week)
+    #TODO: sort candidate_courses
     #TODO: code here is WRONG
     if(candidate_name is None):
         print('No course candidate found, fall back to the first course')
@@ -170,6 +184,7 @@ def order(course_params: str):
     course_path = root_site + '/' + course_params
     res = s.post(course_path,book_form)
     succeed= not '操作失败' in res.text
+    #TODO: add msg here
     global available_hours
     if(succeed):
         # TODO: add support for 1 point courses
@@ -183,6 +198,7 @@ def cancel(cancel_params: str):
     res = s.post(course_path,cancel_form)
     succeed= not '操作失败' in res.text
     global available_hours
+    #TODO: add msg here
     if(succeed):
         # TODO: add support for 1 point courses
         available_hours += 2
