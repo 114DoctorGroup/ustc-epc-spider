@@ -41,7 +41,6 @@ class Course:
     
 selected_courses = []
 # TODO: maintain selected_courses in order, cancel
-# TODO: add check_duplicate
 
 # visit the site and get cookies
 default_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.75 Safari/537.36'
@@ -164,7 +163,6 @@ def check_unfull_courses(s:requests.Session, page_url:str):
     pass
 
 def check_earliest_course(s:requests.Session, page_url:str):
-    # TODO: return course params and a datetime obj
     week_patt = re.compile(r'<td align="center">第(\d+)周</td>')
     page_raw = s.get(page_url+'&isall=some').text
     earliest_week = int(week_patt.search(page_raw).group(1))
@@ -195,7 +193,6 @@ def order(course_params: str):
         operation_msg = order_msg_patt.search(res.text).group(1)
     except Exception:
         print('Operation message parse failed.')
-    #TODO: add msg here
     global available_hours
     if(succeed):
         # TODO: add support for 1 point courses
@@ -240,7 +237,7 @@ def smart_order(course_params: str):
                 return True
             else:
                 # first roll back
-                print('选课失败，原因：' + order_res)
+                print('选课失败，原因：' + order_res[1])
                 print('正在回滚...')
                 candidate_params_order = candidate_params.replace('record_book.asp','m_practice.asp')
                 rb_res = order(candidate_params_order)
