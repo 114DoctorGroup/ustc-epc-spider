@@ -268,9 +268,9 @@ while True:
         case2 = order_week_beforeequal==0 and res[1]<candidate_dt
         if(case1 or case2):
             if(duplicate):
-                print('发现更早的可替代课程：'+str(res[1])+',但这门课已经上过')
+                print('发现更早的可替代课程：'+str(res[1])+' '+ res[3] + ',但这门课已经上过')
             else:
-                print('发现更早的可替代课程：'+str(res[1]))
+                print('发现更早的可替代课程：'+str(res[1])+' '+ res[3])
                 if(order_flag):
                     if(smart_order(res[2])):
                         print('换课成功！')
