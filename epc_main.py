@@ -16,6 +16,7 @@ order_week_beforeequal = js['order_week_beforeequal']
 replace_candidate = js['replace.candidate']
 replaec_forbidden = js['replace.forbidden']
 verbose_mode = js['verbose']
+course_forbidden = js['course.forbidden']
 
 enable_array = [js['enable.situational_dialog'], js['enable.topical_discuss'], js['enable.debate'], js['enable.drama']]
 
@@ -262,7 +263,7 @@ while True:
         res = check_earliest_course(s, page+'&isall=some')
         if verbose_mode:
             print(str(res[0]), end='\t', flush=True)
-        duplicate = course_duplicate(res[3])
+        duplicate = course_duplicate(res[3]) or res[3] in course_forbidden
         case1 = res[0] <= order_week_beforeequal and order_week_beforeequal>0
         case2 = order_week_beforeequal==0 and res[1]<candidate_dt
         if(case1 or case2):
