@@ -166,14 +166,21 @@ def check_unfull_courses(s:requests.Session, page_url:str):
 def check_earliest_course(s:requests.Session, page_url:str):
     week_patt = re.compile(r'<td align="center">第(\d+)周</td>')
     page_raw = s.get(page_url+'&isall=some').text
-    earliest_week = int(week_patt.search(page_raw).group(1))
-    course_params = course_form_patt.search(page_raw).group(2)
-    course_form = course_form_patt.search(page_raw).group(1)
-    td_list = td_tag_patt.findall(course_form)
-    course_name = name_in_td_patt.search(td_list[0]).group(1)
-    dt_match = datetime_patt.search(td_list[5])
-    dt = datetime(int(dt_match.group(1)),int(dt_match.group(2)),int(dt_match.group(3)),int(dt_match.group(4)),int(dt_match.group(5)))
-    return [earliest_week, dt, course_params, course_name]
+    try:
+        earliest_week = int(week_patt.search(page_raw).group(1))
+        course_params = course_form_patt.search(page_raw).group(2)
+        course_form = course_form_patt.search(page_raw).group(1)
+        td_list = td_tag_patt.findall(course_form)
+        course_name = name_in_td_patt.search(td_list[0]).group(1)
+        dt_match = datetime_patt.search(td_list[5])
+        dt = datetime(int(dt_match.group(1)),int(dt_match.group(2)),int(dt_match.group(3)),int(dt_match.group(4)),int(dt_match.group(5)))
+    except Exception:
+        # is kicked out?
+        if('登录后可以查看详细信息' in page_raw):
+            print('已被踢下线')
+            exit(0)
+    else:
+        return [earliest_week, dt, course_params, course_name]
 
 def course_duplicate(name:str):
     for c in selected_courses:
