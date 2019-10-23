@@ -8,6 +8,7 @@
     "receiver.user": "用于接受邮件提醒的邮箱账号",
 
     "verbose" : true,
+    "enable.loop" : false,
     "enable.order" : true,
     "enable.replace" : false,
     "enable.situational_dialog" : false,

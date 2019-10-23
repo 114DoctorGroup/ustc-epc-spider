@@ -12,6 +12,7 @@ stuid = js['stuno']
 passwd = js['passwd']
 order_flag = js['enable.order']
 replace_flag = js['enable.replace']
+loop_flag = js['enable.loop']
 order_week_beforeequal = js['order_week_beforeequal']
 replace_candidate = js['replace.candidate']
 replaec_forbidden = js['replace.forbidden']
@@ -281,10 +282,12 @@ while True:
                 if(order_flag):
                     if(smart_order(res[2])):
                         print('换课成功！')
-                        exit(0)
+                        if not loop_flag:
+                            exit(0)
                     else:
                         print('换课失败')
-                        exit(0)
+                        if not loop_flag:
+                            exit(0)
     if verbose_mode:
         print('')
             # if(not r[0] and r[1]=='Order Failed'):
