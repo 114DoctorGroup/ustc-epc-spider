@@ -1,6 +1,7 @@
 import requests
 import re
 import json
+import yzm_wc
 from os import system
 from datetime import datetime
 
@@ -39,8 +40,8 @@ class Course:
         self.start_time = start_time
         self.name = name
         self.score = score
-    
-    
+
+
 selected_courses = []
 # TODO: maintain selected_courses in order, cancel
 
@@ -64,7 +65,7 @@ img = s.get(checkcode_path, params = {timestamp:None}).content
 # ---Rotine to recoginze check code---
 with open('checkcode.png','wb') as f:
     f.write(img)
-checkcode = input("Charcode:")
+checkcode = yzm_wc.get_yzm()
 # ---
 login_dict = {'submit_type': 'user_login',
     'name': stuid,
