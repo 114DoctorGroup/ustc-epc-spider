@@ -14,6 +14,7 @@ stuid = js['stuno']
 passwd = js['passwd']
 order_flag = js['enable.order']
 replace_flag = js['enable.replace']
+duplicate_flag = js['enable.duplicate']
 loop_flag = js['enable.loop']
 order_week_beforeequal = js['order_week_beforeequal']
 replace_candidate = js['replace.candidate']
@@ -42,8 +43,10 @@ class Course:
         self.name = name
         self.score = score
 
-
+# all, including planned and finished
 selected_courses = []
+# only planned
+planned_courses = []
 # TODO: maintain selected_courses in order, cancel
 
 # visit the site and get cookies
@@ -128,6 +131,8 @@ def check_study_hours(s):
             # add to selected_courses first
             c = Course(form[1], dt, nm, score, week)
             selected_courses.append(c)
+            if(planned):
+                planned_courses.append(c)
             if(c.name != replaec_forbidden):
                 candidate_courses.append(c)
             if len(replace_candidate)>0:
@@ -193,8 +198,13 @@ def check_earliest_course(s:requests.Session, page_url:str, retry_num = 3):
     else:
         return [earliest_week, dt, course_params, course_name]
 
-def course_duplicate(name:str):
-    for c in selected_courses:
+def course_duplicate(name:str, allowdup = False):
+    ls = None
+    if allowdup:
+        ls = planned_courses
+    else:
+        ls = selected_courses
+    for c in ls:
         if name in c.name:
             return True
     return False
@@ -281,7 +291,7 @@ while True:
         res = check_earliest_course(s, page+'&isall=some')
         if verbose_mode:
             print(str(res[0]), end='\t', flush=True)
-        duplicate = course_duplicate(res[3]) or res[3] in course_forbidden
+        duplicate = course_duplicate(res[3], duplicate_flag) or res[3] in course_forbidden
         case1 = res[0] <= order_week_beforeequal and order_week_beforeequal>0
         case2 = order_week_beforeequal==0 and res[1]<candidate_dt
         if(case1 or case2):
