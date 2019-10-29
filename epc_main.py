@@ -1,5 +1,6 @@
 import requests
 import re
+import io
 import json
 import yzm_wc
 from os import system
@@ -50,36 +51,37 @@ default_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl
                     }
 s = requests.Session()
 s.headers.update(default_headers)
-s.get(main_site)
-    # get check code's timestamp
-nleft_text = s.get(nleft_page).text
-timestamp = None
-try:
-    timestamp = re.search('<TD ><img src="(.*?)">', nleft_text).group(1)
-except Exception:
-    print("Parse error.")
-timestamp = timestamp.split('checkcode.asp?')[1]
-checkcode_path = 'http://epc.ustc.edu.cn/checkcode.asp'
 
-img = s.get(checkcode_path, params = {timestamp:None}).content
-# ---Rotine to recoginze check code---
-with open('checkcode.png','wb') as f:
-    f.write(img)
-checkcode = yzm_wc.get_yzm()
-# ---
-login_dict = {'submit_type': 'user_login',
-    'name': stuid,
-    'pass': passwd,
-    'txt_check': checkcode,
-    'user_type': 2,
-    'Submit': 'LOG IN'
-    }
-res = s.post(nleft_page, data=login_dict)
-if(res.status_code == 200):
-    print('Logined.')
-else:
-    print('Login failed.')
-    exit()
+def login():
+    s.get(main_site)
+    # get check code's timestamp
+    nleft_text = s.get(nleft_page).text
+    timestamp = None
+    try:
+        timestamp = re.search('<TD ><img src="(.*?)">', nleft_text).group(1)
+    except Exception:
+        print("Parse error.")
+    timestamp = timestamp.split('checkcode.asp?')[1]
+    checkcode_path = 'http://epc.ustc.edu.cn/checkcode.asp'
+    img = s.get(checkcode_path, params = {timestamp:None}).content
+    checkcode = yzm_wc.get_yzm_from_bytes(img)
+    login_dict = {'submit_type': 'user_login',
+        'name': stuid,
+        'pass': passwd,
+        'txt_check': checkcode,
+        'user_type': 2,
+        'Submit': 'LOG IN'
+        }
+    res = s.post(nleft_page, data=login_dict)
+    if(res.status_code == 200):
+        print('Logined.')
+        return True
+    else:
+        print('Login failed.')
+        return False
+
+if not login():
+    exit(0)
 
 course_form_patt = re.compile(r'(<form action="(m_practice.asp\?second_id.*?)".*?</form>)', re.DOTALL)
 form_tag_patt = re.compile('(<form action="(.*?)".*?</form>)', re.DOTALL)
@@ -165,7 +167,7 @@ order_msg_patt = re.compile(r'<tr><td colspan="2" style="padding-left:20px; padd
 def check_unfull_courses(s:requests.Session, page_url:str):
     pass
 
-def check_earliest_course(s:requests.Session, page_url:str):
+def check_earliest_course(s:requests.Session, page_url:str, retry_num = 3):
     week_patt = re.compile(r'<td align="center">第(\d+)周</td>')
     page_raw = s.get(page_url+'&isall=some').text
     try:
@@ -179,8 +181,12 @@ def check_earliest_course(s:requests.Session, page_url:str):
     except Exception:
         # is kicked out?
         if('登录后可以查看详细信息' in page_raw):
-            print('已被踢下线')
-            exit(0)
+            if(retry_num==0):
+                print('重新登录失败')
+                exit(-1)
+            print('已被踢下线，正在重新登录')
+            login()
+            return check_earliest_course(s, page_url, retry_num-1)
     else:
         return [earliest_week, dt, course_params, course_name]
 
