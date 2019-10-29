@@ -178,7 +178,7 @@ def check_earliest_course(s:requests.Session, page_url:str, retry_num = 3):
         course_name = name_in_td_patt.search(td_list[0]).group(1)
         dt_match = datetime_patt.search(td_list[5])
         dt = datetime(int(dt_match.group(1)),int(dt_match.group(2)),int(dt_match.group(3)),int(dt_match.group(4)),int(dt_match.group(5)))
-    except Exception:
+    except Exception as eee:
         # is kicked out?
         if('登录后可以查看详细信息' in page_raw):
             if(retry_num==0):
@@ -187,6 +187,9 @@ def check_earliest_course(s:requests.Session, page_url:str, retry_num = 3):
             print('已被踢下线，正在重新登录')
             login()
             return check_earliest_course(s, page_url, retry_num-1)
+        else:
+            print('Other exception occurs')
+            print(str(eee))
     else:
         return [earliest_week, dt, course_params, course_name]
 
