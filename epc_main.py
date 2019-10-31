@@ -162,8 +162,6 @@ def check_study_hours(s):
 
 available_hours, candidate_dt, candidate_params, candidate_name = check_study_hours(s)
 
-print('Situ(1)\tTopi(2)\tDeba(2)\tDrama(2)')
-
 old_state = [0,0,0,0]
 
 week_patt = re.compile(r'<td align="center">第(\d+)周</td>')
@@ -281,10 +279,10 @@ def smart_order(course_params: str):
 
 logger.default_logger.log('开始捡漏')
 logger.default_logger.log('可用预约学时：'+ str(available_hours))
-# Only print for situational dialog.
+
+print('Situ(1)\tTopi(2)\tDeba(2)\tDrama(2)')
+
 while True:
-    #situational_res = check_earliest_course(s,situational_dlg_page+'&isall=some')
-    #print(str(situational_res[0]), end='\t', flush=True)
     for i, page in enumerate([situational_dlg_page, topical_discus_page, debate_page, drama_page]):
         if(not enable_array[i]):
             if verbose_mode:
@@ -298,9 +296,9 @@ while True:
         case2 = order_week_beforeequal==0 and res[1]<candidate_dt
         if(case1 or case2):
             if(duplicate):
-                print('发现更早的可替代课程：'+str(res[1])+' '+ res[3] + ',但这门课已经上过')
+                logger.default_logger.log('发现更早的可替代课程：'+str(res[1])+' '+ res[3] + ',但这门课已经上过')
             else:
-                print('发现更早的可替代课程：'+str(res[1])+' '+ res[3])
+                logger.default_logger.log('发现更早的可替代课程：'+str(res[1])+' '+ res[3])
                 if(order_flag):
                     if(smart_order(res[2])):
                         print('换课成功！')
@@ -312,13 +310,6 @@ while True:
                             exit(0)
     if verbose_mode:
         print('')
-            # if(not r[0] and r[1]=='Order Failed'):
-            #     print('换课失败，且已退课，正在尝试回滚')
-
-            # elif(not r[0] and r[1]=='Cancel Failed'):
-            #     print('换课失败，但未退课')
-            # elif(r[0]):
-            #     print('换课成功')
 
 #--------------
 
