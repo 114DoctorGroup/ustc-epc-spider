@@ -3,6 +3,7 @@ import re
 import io
 import json
 import yzm_wc
+import logger
 from os import system
 from datetime import datetime
 
@@ -156,7 +157,7 @@ def check_study_hours(s):
         dt = datetime(int(dt_match.group(1)),int(dt_match.group(2)),int(dt_match.group(3)),int(dt_match.group(4)),int(dt_match.group(5)))
         candidate_dt, candidate_params, candidate_name = dt, form[1], name_in_td_patt.search(td_list[0]).group(1)
     else:
-        print('Course candidate to be replaced: '+candidate_name+' at '+str(candidate_dt))
+        logger.default_logger.log('可能会被替换的课程: '+candidate_name+' at '+str(candidate_dt))
     return available_hours, candidate_dt, candidate_params, candidate_name
 
 available_hours, candidate_dt, candidate_params, candidate_name = check_study_hours(s)
@@ -187,13 +188,13 @@ def check_earliest_course(s:requests.Session, page_url:str, retry_num = 3):
         # is kicked out?
         if('登录后可以查看详细信息' in page_raw):
             if(retry_num==0):
-                print('重新登录失败')
+                logger.default_logger.log('重新登录失败')
                 exit(-1)
-            print('已被踢下线，正在重新登录')
+            logger.default_logger.log('已被踢下线，正在重新登录')
             login()
             return check_earliest_course(s, page_url, retry_num-1)
         else:
-            print('Other exception occurs')
+            logger.default_logger.log('Other exception occurs')
             print(str(eee))
     else:
         return [earliest_week, dt, course_params, course_name]
@@ -244,41 +245,42 @@ def cancel(cancel_params: str):
 def smart_order(course_params: str):
     global available_hours
     if(available_hours == 1):
-        print('Now we don\'t consider 1 point course.')
+        logger.default_logger.log('Now we don\'t consider 1 point course.')
         return
     if(available_hours>=2):
-        print('可用预约学时足够，直接选课')
+        logger.default_logger.log('可用预约学时足够，直接选课')
         order_res = order(course_params)
         if(order_res[0]):
             return True
         else:
-            print('选课失败，原因：'+order_res[1])
+            logger.default_logger.log('选课失败，原因：'+order_res[1])
             return False
     elif(replace_flag):
         # we're NOT considering the score being ONE!
-        print('正在换课， 将退课程：'+str(candidate_dt)+' '+candidate_name)
+        logger.default_logger.log('正在换课， 将退课程：'+str(candidate_dt)+' '+candidate_name)
         if(not cancel(candidate_params)):
             return False
         if(available_hours>=2):
-            print('正在选课...')
+            logger.default_logger.log('正在选课...')
             order_res = order(course_params)
             if(order_res[0]):
                 return True
             else:
                 # first roll back
-                print('选课失败，原因：' + order_res[1])
-                print('正在回滚...')
+                logger.default_logger.log('选课失败，原因：' + order_res[1])
+                logger.default_logger.log('正在回滚...')
                 candidate_params_order = candidate_params.replace('record_book.asp','m_practice.asp')
                 rb_res = order(candidate_params_order)
                 if(not rb_res[0]):
-                    print('回滚失败! 原因：'+rb_res[1])
+                    logger.default_logger.log('回滚失败! 原因：'+rb_res[1])
                 else:
-                    print('回滚成功.')
+                    logger.default_logger.log('回滚成功.')
                 return False
     else:
-        print('可用预约学时不足')
+        logger.default_logger.log('可用预约学时不足')
 
-#--- test part
+logger.default_logger.log('开始捡漏')
+logger.default_logger.log('可用预约学时：'+ str(available_hours))
 # Only print for situational dialog.
 while True:
     #situational_res = check_earliest_course(s,situational_dlg_page+'&isall=some')

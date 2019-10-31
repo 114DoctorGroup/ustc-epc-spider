@@ -1,4 +1,5 @@
 **/config.json
 checkcode/**
 checkcode.png
+*.log
 __pycache__/**
