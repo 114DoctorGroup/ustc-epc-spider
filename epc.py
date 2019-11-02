@@ -1,69 +1,24 @@
 import requests
 import re
+import os
 import json
 from os import system
 from datetime import datetime, timedelta
+import check
 
-json_str = ''
-with open('config.json', encoding = 'utf-8') as f:
-    json_str = f.read()
-js = json.loads(json_str)
-stuid = js['stuno']
-passwd = js['passwd']
-order_flag = js['enable.order']
-replace_flag = js['enable.replace']
-order_week_beforeequal = js['order_week_beforeequal']
-replace_scandidate = js['replace_candidate']
-banned_time = js['banned_time']
-enable_array = [js['enable.situational_dialog'], js['enable.topical_discuss'], js['enable.debate'], js['enable.drama']]
 
+# constant parameter of epc website
 root_site = 'http://epc.ustc.edu.cn'
 main_site = 'http://epc.ustc.edu.cn/main.asp'
-
 situational_dlg_page = 'http://epc.ustc.edu.cn/m_practice.asp?second_id=2001'
 topical_discus_page = 'http://epc.ustc.edu.cn/m_practice.asp?second_id=2002'
 debate_page = 'http://epc.ustc.edu.cn/m_practice.asp?second_id=2003'
 drama_page = 'http://epc.ustc.edu.cn/m_practice.asp?second_id=2004'
-
 nleft_page = 'http://epc.ustc.edu.cn/n_left.asp'
 record_page = 'http://epc.ustc.edu.cn/record_book.asp'
-
-# visit the site and get cookies
-default_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.75 Safari/537.36'
-                    }
-s = requests.Session()
-s.headers.update(default_headers)
-s.get(main_site)
-    # get check code's timestamp
-nleft_text = s.get(nleft_page).text
-timestamp = None
-try:
-    timestamp = re.search('<TD ><img src="(.*?)">', nleft_text).group(1)
-except Exception:
-    print("Parse error.")
-timestamp = timestamp.split('checkcode.asp?')[1]
 checkcode_path = 'http://epc.ustc.edu.cn/checkcode.asp'
 
-img = s.get(checkcode_path, params = {timestamp:None}).content
-# ---Rotine to recoginze check code---
-with open('checkcode.png','wb') as f:
-    f.write(img)
-checkcode = input("Charcode:")
-# ---
-login_dict = {'submit_type': 'user_login',
-    'name': stuid,
-    'pass': passwd,
-    'txt_check': checkcode,
-    'user_type': 2,
-    'Submit': 'LOG IN'
-    }
-res = s.post(nleft_page, data=login_dict)
-if(res.status_code == 200):
-    print('Logined.')
-else:
-    print('Login failed.')
-    exit()
-
+# regular pattern 
 course_form_patt = re.compile(r'(<form action="(m_practice.asp\?second_id.*?)".*?</form>)', re.DOTALL)
 course_form_patt2 = re.compile(r'<form action="m_practice.asp\?second_id.*?".*?</form>', re.DOTALL)
 form_tag_patt = re.compile('(<form action="(.*?)".*?</form>)', re.DOTALL)
@@ -72,18 +27,24 @@ datetime_patt = re.compile(r'(\d+)/(\d+)/(\d+)<br>(\d+):(\d+)-')
 name_in_td_patt = re.compile(r'<td.*?<a href.*?>(.*?)</a></td>')
 week_patt = re.compile(r'<td align="center">第(\d+)周</td>')
 weekday_patt = re.compile(r'<td align="center">周(\S)</td>')
+class_type = ["Situational Dialogue",  "Drama", "Topical Discussion", "Debate"]
 
-class_type = ["Situational Dialogue", "Topical Discussion", "Debate", "Drama"]
-
+# visit the site and get cookies
+default_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.75 Safari/537.36'
+}
+ 
 # First, check study hours
 def check_study_hours(s):
     s.cookies.set('querytype','all')
     res = s.get(record_page)
     status_raw = res.text
+
     all_hours = int(re.search(r'已预约的交流英语学时:(\d+)', status_raw).group(1))
     studied_hours  = int(re.search(r'已获得的交流英语学时:(\d+)', status_raw).group(1))
-    planned_hours = all_hours - studied_hours # not greater than 4
+    absent_hours  = int(re.search(r'预约未上的交流英语学时：(\d+)', status_raw).group(1))
+    planned_hours = all_hours - studied_hours - absent_hours # not greater than 4
     available_hours = 4 - planned_hours
+    #print(all_hours, studied_hours, absent_hours)
 
     # Check the earliest course that has been planned
     candidate_dt = datetime.now() + timedelta(days = 365) # 默认时间为明年同一天，标识未选上任何课程
@@ -183,11 +144,12 @@ def cancel(cancel_params: str):
     return succeed
 
 def smart_order(course_params: str):
-    global available_hours
+    global available_hours, candidate_dt, candidate_params, candidate_name
+
     if(available_hours == 1):
         print('Now we don\'t consider 1 point course.')
         return
-    if(available_hours>=2):
+    if(available_hours >= 2):
         print('可用预约学时足够，直接选课')
         if(order(course_params)):
             return True
@@ -195,7 +157,7 @@ def smart_order(course_params: str):
             return False
     elif(replace_flag):
         # we're NOT considering the score being ONE!
-        print('正在换课， 将退课程：'+str(candidate_dt)+' '+candidate_name)
+        print('正在换课，将退课程：'+ str(candidate_dt)+' '+candidate_name)
         if(not cancel(candidate_params)):
             return False
         if(available_hours>=2):
@@ -225,36 +187,96 @@ def is_wanted_dt(course: tuple, type) :
         course_date_str += '晚上'
 
     if course_date_str in banned_time :
-        print(type + " " + str(course[0]) + "(" + course_date_str + ")" + ":时间需求不满足")
+        print("时间需求不满足：" + type + " " + str(course[0]) + "(" + course_date_str + ")")
         return False
     else :
         return True
 
-print('Situ(1)\tTopi(2)\tDeba(2)\tDrama(2)')
-
-#--- test part
-# Only print for situational dialog.
-while True:
-    available_hours, candidate_dt, candidate_params, candidate_name = check_study_hours(s)
-    best_dt = candidate_dt
-    best_course = None
-    for i, page in enumerate([situational_dlg_page, topical_discus_page, debate_page, drama_page]):
-        if(not enable_array[i]):
-            continue
-
-        res = find_alternative(s, page+'&isall=some', i)
-
-        if res is not None:
-            if best_course is None or res[0] < best_dt: # best_course还没找到或者找到一个更好的课
-                best_dt = res[0]
-                best_course = res[1]
-            else:
-                pass
+def OrderCourseLoop(s):
+    print('Situ(1)\tTopi(2)\tDeba(2)\tDrama(2)')
     
-    if(order_flag and best_course is not None and best_dt.day < candidate_dt.day):
-        print('发现最早的可替代课程：' + str(best_dt))
-        if(smart_order(best_course)):
-            print('换课成功\n')
-        else:
-            print('换课失败!\n')
-#--------------
+    global available_hours, candidate_dt, candidate_params, candidate_name
+    
+    available_hours, candidate_dt, candidate_params, candidate_name = check_study_hours(s)
+
+    while True:
+        for i, page in enumerate([situational_dlg_page, drama_page, topical_discus_page, debate_page]):
+            if(not enable_array[i]):
+                continue
+                
+            res = find_alternative(s, page+'&isall=some', i)
+
+            if res is not None:
+                if available_hours > 0:
+                    smart_order(res[1])
+                    available_hours, candidate_dt, candidate_params, candidate_name = check_study_hours(s)
+                elif res[0].day < candidate_dt.day:
+                    print('发现日期更早的可替代课程：' + class_type[i] + " " + str(res[0]))
+                    smart_order(res[1])
+                    available_hours, candidate_dt, candidate_params, candidate_name = check_study_hours(s)
+                elif res[0].day == candidate_dt.day:
+                    print('发现同一天的替代课程：' + class_type[i] + " " + str(res[0]))
+                else:
+                    pass
+            
+if __name__ == "__main__":
+    # read the configuration in the json file
+    json_str = ''
+    with open('config.json', encoding = 'utf-8') as f:
+        json_str = f.read()
+    js = json.loads(json_str)
+    stuid = js['stuno']
+    passwd = js['passwd']
+    order_flag = js['enable.order']
+    replace_flag = js['enable.replace']
+    replace_scandidate = js['replace_candidate']
+    banned_time = js['banned_time']
+    enable_array = [js['enable.situational_dialog'], js['enable.drama'], js['enable.topical_discuss'], js['enable.debate']]
+    
+    # candidate course to replace, global parameters
+    available_hours = 0
+    candidate_dt = None
+    candidate_params = None
+    candidate_name = ''
+    
+    while True:     
+        try:
+            s = requests.Session()
+            s.headers.update(default_headers)
+            s.get(main_site)
+
+            # get check code's timestamp
+            nleft_text = s.get(nleft_page).text
+            timestamp = None
+            try:
+                timestamp = re.search('<TD ><img src="(.*?)">', nleft_text).group(1)
+            except Exception:
+                print("Parse error.")
+            timestamp = timestamp.split('checkcode.asp?')[1]
+            img = s.get(checkcode_path, params = {timestamp:None}).content
+            with open('checkcode.png','wb') as f:
+                f.write(img)
+
+            checkcode = check.Checkcode()
+            print("checkcode: " + checkcode)
+            login_dict = {'submit_type': 'user_login',
+                'name': stuid,
+                'pass': passwd,
+                'txt_check': checkcode,
+                'user_type': 2,
+                'Submit': 'LOG IN'
+                }
+            res = s.post(nleft_page, data=login_dict)
+            if(res.status_code == 200):
+                print('Logined.')
+            else:
+                print('Login failed.')
+                exit()
+            
+            OrderCourseLoop(s)
+        except AttributeError:
+            pass
+        
+        except:
+            os.system("pause")
+            exit(-1)
