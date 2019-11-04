@@ -99,6 +99,9 @@ def find_alternative(s:requests.Session, page_url:str, type_code:int):
 
     all_course_form = course_form_patt2.findall(page_raw)
     
+    if all_course_form is None:
+        exit(-1)
+        
     for course_form in all_course_form:
         course_params = course_form_patt.search(course_form).group(2)
         td_list = td_tag_patt.findall(course_form)
@@ -267,16 +270,19 @@ if __name__ == "__main__":
                 'Submit': 'LOG IN'
                 }
             res = s.post(nleft_page, data=login_dict)
-            if(res.status_code == 200):
+            s.get(main_site)
+            nleft_text = s.get(nleft_page).text
+
+            if res.status_code == 200 and "点击可注销本次登录" in nleft_text:
                 print('Logined.')
+                OrderCourseLoop(s)
             else:
-                print('Login failed.')
-                exit()
-            
-            OrderCourseLoop(s)
-        except AttributeError:
-            pass
-        
+                print('Login failed. Check your password')
+                os._exit(-1)
+
+        except KeyboardInterrupt:
+            print("Stop the process with a keyboard interupt!")
+            os._exit(-1)
+
         except:
-            os.system("pause")
-            exit(-1)
+            print("something bad happened! connect again")
