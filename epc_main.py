@@ -194,6 +194,7 @@ def check_earliest_course(s:requests.Session, page_url:str, retry_num = 3):
         else:
             logger.default_logger.log('Other exception occurs')
             print(str(eee))
+            login()
     else:
         return [earliest_week, dt, course_params, course_name]
 
@@ -282,6 +283,9 @@ logger.default_logger.log('可用预约学时：'+ str(available_hours))
 
 print('Situ(1)\tTopi(2)\tDeba(2)\tDrama(2)')
 
+def is_conflict(c: Course):
+    pass
+
 while True:
     for i, page in enumerate([situational_dlg_page, topical_discus_page, debate_page, drama_page]):
         if(not enable_array[i]):
@@ -289,6 +293,9 @@ while True:
                 print('', end='\t')
             continue
         res = check_earliest_course(s, page+'&isall=some')
+        if res is None:
+            logger.default_logger.log('Some error ocurred：We\'ll try again')
+            continue
         if verbose_mode:
             print(str(res[0]), end='\t', flush=True)
         duplicate = course_duplicate(res[3], duplicate_flag) or res[3] in course_forbidden

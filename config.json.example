@@ -11,6 +11,7 @@
     "enable.loop" : false,
     "enable.order" : true,
     "enable.replace" : false,
+    "enable.duplicate" : false,
     "enable.situational_dialog" : false,
     "enable.topical_discuss" : true,
     "enable.debate" : true,
