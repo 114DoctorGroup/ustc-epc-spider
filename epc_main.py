@@ -77,7 +77,7 @@ def login():
         'Submit': 'LOG IN'
         }
     res = s.post(nleft_page, data=login_dict)
-    if(res.status_code == 200):
+    if(res.status_code == 200 and '点击可注销本次登录' in nleft_text):
         print('Logined.')
         return True
     else:
@@ -173,7 +173,8 @@ def check_unfull_courses(s:requests.Session, page_url:str):
 
 def check_earliest_course(s:requests.Session, page_url:str, retry_num = 3):
     week_patt = re.compile(r'<td align="center">第(\d+)周</td>')
-    page_raw = s.get(page_url+'&isall=some').text
+    page_res = s.get(page_url+'&isall=some')
+    page_raw = page_res.text
     try:
         earliest_week = int(week_patt.search(page_raw).group(1))
         course_params = course_form_patt.search(page_raw).group(2)
@@ -192,9 +193,10 @@ def check_earliest_course(s:requests.Session, page_url:str, retry_num = 3):
             login()
             return check_earliest_course(s, page_url, retry_num-1)
         else:
-            logger.default_logger.log('Other exception occurs')
+            if(page_res.status_code != 200):
+                logger.default_logger.log(str(page_res.status_code)+' 连接出现问题，网站可能暂时挂掉了...')
             print(str(eee))
-            login()
+            return None
     else:
         return [earliest_week, dt, course_params, course_name]
 
