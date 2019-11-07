@@ -36,6 +36,8 @@ debate_page = 'http://epc.ustc.edu.cn/m_practice.asp?second_id=2003'
 drama_page = 'http://epc.ustc.edu.cn/m_practice.asp?second_id=2004'
 
 nleft_page = 'http://epc.ustc.edu.cn/n_left.asp'
+nright_page = 'http://epc.ustc.edu.cn/n_right.asp'
+nbottom_page = 'http://epc.ustc.edu.cn/n_bottom.asp'
 record_page = 'http://epc.ustc.edu.cn/record_book.asp'
 
 class Course:
@@ -81,7 +83,7 @@ def login():
         'Submit': 'LOG IN'
         }
     res = s.post(nleft_page, data=login_dict)
-    if(res.status_code == 200 and '点击可注销本次登录' in nleft_text):
+    if(res.status_code == 200 and '点击可注销本次登录' in res.text):
         logger.default_logger.log('Logined.')
         return True
     else:
@@ -198,7 +200,7 @@ def check_earliest_course(s:requests.Session, page_url:str, retry_num = 3):
         course_name = name_in_td_patt.search(td_list[0]).group(1)
         dt_match = datetime_patt.search(td_list[5])
         dt = datetime(int(dt_match.group(1)),int(dt_match.group(2)),int(dt_match.group(3)),int(dt_match.group(4)),int(dt_match.group(5)))
-        order_open = '预约时间未到' in course_form
+        order_open = not '预约时间未到' in course_form
         selectable = True # TODO: need to figure out!
     except Exception as eee:
         # is kicked out?
@@ -307,11 +309,11 @@ logger.default_logger.log('可用预约学时：'+ str(available_hours))
 
 print('Situ(1)\tTopi(2)\tDeba(2)\tDrama(2)')
 
-def time_conflict(c: Course):
+def time_conflict(c: Course, curr_ccd: Course):
     # compare with planned_courses
     for p in planned_courses:
         if p.start_time==c.start_time:
-            if replace_flag and p is candidate_course:
+            if replace_flag and p is curr_ccd:
                 # candidate_coures not None, so replace enabled
                 return False
             return True
@@ -327,7 +329,6 @@ while True:
                 print('', end='\t')
             continue
         res = check_earliest_course(s, page+'&isall=some')
-        # TODO: now we assume `res` is open. It's not the case for the latest week
         if res is None:
             logger.default_logger.log('Some error ocurred：We\'ll try again')
             continue
@@ -335,89 +336,51 @@ while True:
             print(str(res.week), end='\t', flush=True)
         if not res.order_open:
             continue
-        duplicate, newcandidate = course_duplicate(res, duplicate_flag)
-        forbidden = res.name in course_forbidden
-        contradict = time_conflict(res)
         range_valid = order_week_afterequal <= order_week_beforeequal and order_week_afterequal >= 0
         in_range = res.week >= order_week_afterequal and res.week <= order_week_beforeequal and range_valid
-        earlier2cdd = candidate_course and res.start_time<candidate_dt
-
+        
         if not range_valid:
             logger.default_logger.log('最小周与最大周非法，请在config.json重新设置order_week_beforeequal与order_week_afterequal')
             exit(0)
         curr_candidate = None # None represents NOT replacing
-        direct_order_case = False
-        replace_case = False
-        if in_range and hours_enough:
-            direct_order_case = True
-        elif in_range and replace_flag:
-            replace_case = True
+        if not (in_range and (hours_enough or replace_flag)):
+            if not hours_enough and not replace_flag:
+                logger.default_logger.log('学时不足，且已禁用换课。请到config.json内将enable.replace设为true，或空出足够学时。')
+                exit(0)
+            continue
+        # Now we know in_range, either hours_enough, or replace enabled
+        if not hours_enough:
             curr_candidate = candidate_course
-
-        if(hours_enough):
-            if in_range:
-                if duplicate:
-                    logger.default_logger.log('发现符合条件的可选课程:' +str(res.start_time)+' '+ res.name + '，但这门课已经上过/选过了')
-                    continue
-                if contradict:
-                    logger.default_logger.log('发现符合条件的可选课程:' +str(res.start_time)+' '+ res.name + '，但这门课与已预约的课程时间冲突')
-                    continue
-                if forbidden:
-                    logger.default_logger.log('发现符合条件的可选课程:' +str(res.start_time)+' '+ res.name + '，但这门课被禁选')
-                    continue
-                # select the earliest available course in range
-                logger.default_logger.log('发现符合条件的可选课程：'+str(res.start_time)+' '+ res.name)
-                if smart_order(res.params, newcandidate):
-                    print('选课成功！')
-                    if not loop_flag:
-                        exit(0)
-                else:
-                    print('选课失败')
-                    if not loop_flag:
-                        exit(0)
-        elif replace_flag:
-            if in_range:
-                if duplicate:
-                    logger.default_logger.log('发现符合条件的可替代课程:' +str(res.start_time)+' '+ res.name + '，但这门课已经上过/选过了')
-                    continue
-                if contradict:
-                    logger.default_logger.log('发现符合条件的可选课程:' +str(res.start_time)+' '+ res.name + '，但这门课与已预约的课程时间冲突')
-                    continue
-                if forbidden:
-                    logger.default_logger.log('发现符合条件的可选课程:' +str(res.start_time)+' '+ res.name + '，但这门课被禁选')
-                    continue
-                if not (replace_earlier and not earlier2cdd):
-                    logger.default_logger.log('发现符合条件的可替代课程：'+str(res.start_time)+' '+ res.name)
-                    if newcandidate:
-                        if smart_order(res.params, newcandidate):
-                            logger.default_logger.log('相同课程前移成功！')
-                        else:
-                            logger.default_logger.log('相同课程前移失败！')
-                    elif smart_order(res.params, candidate_course):
-                        logger.default_logger.log('换课成功！')
-                    else:
-                        logger.default_logger.log('换课失败！')
-            else:
-                pass   
+        # Check if we could shift the course to an earlier time
+        duplicate, newcandidate = course_duplicate(res, duplicate_flag)
+        if not duplicate and newcandidate:
+            curr_candidate = newcandidate
+        if not hours_enough:
+            earlier2cdd = curr_candidate and res.start_time<curr_candidate.start_time
+            if replace_earlier and not earlier2cdd:
+                # not earlier than candidate
+                continue
+        forbidden = res.name in course_forbidden
+        contradict = time_conflict(res, curr_candidate)
+        
+        if duplicate:
+            logger.default_logger.log('发现符合条件的可选课程:' +str(res.start_time)+' '+ res.name + '，但这门课已经上过/选过了')
+            continue
+        if contradict:
+            logger.default_logger.log('发现符合条件的可选课程:' +str(res.start_time)+' '+ res.name + '，但这门课与已预约的课程时间冲突')
+            continue
+        if forbidden:
+            logger.default_logger.log('发现符合条件的可选课程:' +str(res.start_time)+' '+ res.name + '，但这门课被禁选')
+            continue
+        logger.default_logger.log('发现符合条件的可选课程：'+str(res.start_time)+' '+ res.name)
+        if smart_order(res.params, curr_candidate):
+            print('选课成功！')
+            if not loop_flag:
+                exit(0)
         else:
-            logger.default_logger.log('学时不足，且已禁用换课。请到config.json内将enable.replace设为true，或空出足够学时。')
-            exit(0)
-        case1 = res.week <= order_week_beforeequal and order_week_beforeequal>0
-        case2 = order_week_beforeequal==0 and res.start_time<candidate_dt
-        if(case1 or case2):
-            if(duplicate):
-                logger.default_logger.log('发现更早的可替代课程：'+str(res.start_time)+' '+ res.name + ',但这门课已经上过')
-            else:
-                logger.default_logger.log('发现更早的可替代课程：'+str(res.start_time)+' '+ res.name)
-                if(order_flag):
-                    if(smart_order(res.params)):
-                        print('换课成功！')
-                        if not loop_flag:
-                            exit(0)
-                    else:
-                        print('换课失败')
-                        if not loop_flag:
-                            exit(0)
+            print('选课失败')
+            if not loop_flag:
+                exit(0)
     if verbose_mode:
         print('')
 
