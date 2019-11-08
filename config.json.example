@@ -18,6 +18,7 @@
     "enable.drama" : true,
     "order_week_beforeequal": 20,
     "order_week_afterequal": 0,
+    "replace.earlier" : true,
     "replace.candidate": "City Growth",
     "replace.forbidden" : "",
     "course.forbidden" :""
