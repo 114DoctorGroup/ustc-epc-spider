@@ -99,7 +99,7 @@ def find_alternative(s:requests.Session, page_url:str, type_code:int):
 
     all_course_form = course_form_patt2.findall(page_raw)
     
-    if all_course_form is None:
+    if len(all_course_form) == 0:
         exit(-1)
         
     for course_form in all_course_form:
