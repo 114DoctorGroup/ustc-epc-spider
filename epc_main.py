@@ -353,7 +353,8 @@ while True:
             curr_candidate = candidate_course
         # Check if we could shift the course to an earlier time
         duplicate, newcandidate = course_duplicate(res, duplicate_flag)
-        if not duplicate and newcandidate:
+        if not duplicate and newcandidate and replace_flag:
+            logger.default_logger.log('已预约课程'+newcandidate.name+'存在更早的时间段，将作为被替代课程')
             curr_candidate = newcandidate
         if not hours_enough:
             earlier2cdd = curr_candidate and res.start_time<curr_candidate.start_time
