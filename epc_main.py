@@ -110,12 +110,10 @@ def check_study_hours(s):
     res = s.get(record_page)
     status_raw = res.text
     all_hours = int(re.search(r'已预约的交流英语学时:(\d+)', status_raw).group(1))
-    studied_hours  = int(re.search(r'已获得的交流英语学时:(\d+)', status_raw).group(1))
+    # studied_hours  = int(re.search(r'已获得的交流英语学时:(\d+)', status_raw).group(1))
+    studied_hours = 0
     disobey_hours = int(re.search(r'预约未上的交流英语学时：(\d+)', status_raw).group(1))
-    planned_hours = all_hours - studied_hours - disobey_hours # not greater than 4
-    available_hours = 4 - planned_hours
-    hours_enough = available_hours >= 2
-    need_candidate = not hours_enough and replace_flag
+    need_candidate = True # set to True at first
     # Check the earliest course that has been planned
     candidate = None
     candidate_courses = []
@@ -127,9 +125,10 @@ def check_study_hours(s):
     for form in form_list_raw:
         try:
             td_list = td_tag_patt.findall(form[0])
+            studied = '已刷卡上课' in td_list[9]
+            planned = '预约中' in td_list[9]
             dt_match = datetime_patt.search(td_list[6])
             dt = datetime(int(dt_match.group(1)),int(dt_match.group(2)),int(dt_match.group(3)),int(dt_match.group(4)),int(dt_match.group(5)))
-            planned = '预约中' in td_list[9]
             nm = name_in_td_patt.search(td_list[0]).group(1)
             # skip if score is non digit
             score = int(td_content_patt.search(td_list[2]).group(1))
@@ -143,6 +142,8 @@ def check_study_hours(s):
             selected_courses.append(c)
             if(planned):
                 planned_courses.append(c)
+            if studied:
+                studied_hours += 2
             if need_candidate:
                 if(c.name != replaec_forbidden):
                     candidate_courses.append(c)
@@ -159,6 +160,10 @@ def check_study_hours(s):
                     candidate_params = form[1]
                     candidate_name = name_in_td_patt.search(td_list[0]).group(1)
                     candidate = c
+    planned_hours = all_hours - studied_hours - disobey_hours # not greater than 4
+    available_hours = 4 - planned_hours
+    hours_enough = available_hours >= 2
+    need_candidate = not hours_enough and replace_flag
     if need_candidate:
         #TODO: sort candidate_courses
         #TODO: code here is WRONG
@@ -171,13 +176,14 @@ def check_study_hours(s):
         else:
             logger.default_logger.log('可能会被替换的课程: '+candidate_name+' at '+str(candidate_dt))
     else:
+        candidate = None
         if hours_enough:
             print('学时足够，无需被替代课程')
         else:
             print('已禁用换课，无需被替代课程')
-    return available_hours, candidate_dt, candidate_params, candidate_name, candidate
+    return available_hours, candidate
 
-available_hours, candidate_dt, candidate_params, candidate_name, candidate_course = check_study_hours(s)
+available_hours, candidate_course = check_study_hours(s)
 
 old_state = [0,0,0,0]
 
@@ -285,22 +291,22 @@ def smart_order(course_params: str, cdd = candidate_course):
         logger.default_logger.log('正在换课， 将退课程：'+str(cdd.start_time)+' '+cdd.name)
         if(not cancel(cdd.params)):
             return False
-        if(available_hours>=2):
-            logger.default_logger.log('正在选课...')
-            order_res = order(course_params)
-            if(order_res[0]):
-                return True
+        # if(available_hours>=2):
+        logger.default_logger.log('正在选课...')
+        order_res = order(course_params)
+        if(order_res[0]):
+            return True
+        else:
+            # first roll back
+            logger.default_logger.log('选课失败，原因：' + order_res[1])
+            logger.default_logger.log('正在回滚...')
+            candidate_params_order = cdd.params.replace('record_book.asp','m_practice.asp')
+            rb_res = order(candidate_params_order)
+            if(not rb_res[0]):
+                logger.default_logger.log('回滚失败! 原因：'+rb_res[1])
             else:
-                # first roll back
-                logger.default_logger.log('选课失败，原因：' + order_res[1])
-                logger.default_logger.log('正在回滚...')
-                candidate_params_order = cdd.params.replace('record_book.asp','m_practice.asp')
-                rb_res = order(candidate_params_order)
-                if(not rb_res[0]):
-                    logger.default_logger.log('回滚失败! 原因：'+rb_res[1])
-                else:
-                    logger.default_logger.log('回滚成功.')
-                return False
+                logger.default_logger.log('回滚成功.')
+            return False
     else:
         logger.default_logger.log('可用预约学时不足')
 
