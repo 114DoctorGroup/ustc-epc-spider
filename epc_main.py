@@ -381,11 +381,11 @@ while True:
             continue
         logger.default_logger.log('发现符合条件的可选课程：'+str(res.start_time)+' '+ res.name)
         if smart_order(res.params, curr_candidate):
-            print('选课成功！')
+            logger.default_logger.log('选课成功！')
             if not loop_flag:
                 exit(0)
         else:
-            print('选课失败')
+            logger.default_logger.log('选课失败')
             if not loop_flag:
                 exit(0)
     if verbose_mode:
