@@ -181,9 +181,9 @@ def check_study_hours(s):
             print('学时足够，无需被替代课程')
         else:
             print('已禁用换课，无需被替代课程')
-    return available_hours, candidate
+    return available_hours, candidate, hours_enough
 
-available_hours, candidate_course = check_study_hours(s)
+available_hours, candidate_course, hours_enough = check_study_hours(s)
 
 old_state = [0,0,0,0]
 
