@@ -143,7 +143,7 @@ def check_study_hours(s):
             if(planned):
                 planned_courses.append(c)
             if studied:
-                studied_hours += 2
+                studied_hours += c.score
             if need_candidate:
                 if(c.name != replaec_forbidden):
                     candidate_courses.append(c)
