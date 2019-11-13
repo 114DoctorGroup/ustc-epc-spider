@@ -388,6 +388,8 @@ while True:
             logger.default_logger.log('选课失败')
             if not loop_flag:
                 exit(0)
+        # update candidate. replace_candidate shouldn't be set.
+        available_hours, candidate_course, hours_enough = check_study_hours(s)
     if verbose_mode:
         print('')
 
