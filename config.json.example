@@ -21,5 +21,6 @@
     "replace.earlier" : true,
     "replace.candidate": "City Growth",
     "replace.forbidden" : "",
-    "course.forbidden" :""
+    "course.forbidden" :"",
+    "course.favorite" : ""
 }

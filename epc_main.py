@@ -24,6 +24,7 @@ replace_candidate = js['replace.candidate']
 replaec_forbidden = js['replace.forbidden']
 verbose_mode = js['verbose']
 course_forbidden = js['course.forbidden']
+course_favorite = js['course.favorite']
 
 enable_array = [js['enable.situational_dialog'], js['enable.topical_discuss'], js['enable.debate'], js['enable.drama']]
 
@@ -290,7 +291,7 @@ def smart_order(course_params: str, cdd = candidate_course):
         # we're NOT considering the score being ONE!
         logger.default_logger.log('正在换课， 将退课程：'+str(cdd.start_time)+' '+cdd.name)
         if(not cancel(cdd.params)):
-            return False
+            logger.default_logger.log('退课失败。仍尝试选课')
         # if(available_hours>=2):
         logger.default_logger.log('正在选课...')
         order_res = order(course_params)
@@ -368,6 +369,10 @@ while True:
                 # not earlier than candidate
                 continue
         forbidden = res.name in course_forbidden
+        favorite = len(course_favorite)==0 or res.name in course_favorite
+        if not favorite:
+            logger.default_logger.log('发现符合条件的可选课程:' +str(res.start_time)+' '+ res.name + '，但这门课不是想要的')
+            continue
         contradict = time_conflict(res, curr_candidate)
         
         if duplicate:
