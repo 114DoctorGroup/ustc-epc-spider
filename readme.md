@@ -26,11 +26,11 @@
 
 - 当replace_earlier为False时，选课区间为：
 
-  [第order_week_beforeequal周开始, order_week_afterequal结束]
+  [第order_week_beforeequal周开始, 第order_week_afterequal周结束]
 
 - 当replace_earlier为True时，只会选比candidate更早的课，即选课区间为：
 
-  [第order_week_beforeequal周开始, candidate课程的开始时间]
+  [第order_week_beforeequal周开始, candidate课程的开始时间)
 
 **如何启用改签**
 
@@ -75,7 +75,7 @@ config.json内有四个bool字段："enable.situation_dialog", "enable.topical_d
 
 ## 安装与运行
 
-本脚本依赖python的`requests`包。
+本脚本依赖python 3的`requests`包和`Pillow`包。
 
 1. 首先，git clone
 2. 复制`config.json.example`到`config.json`。
