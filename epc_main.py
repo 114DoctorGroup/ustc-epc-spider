@@ -162,7 +162,9 @@ def check_study_hours(s):
                     candidate_name = name_in_td_patt.search(td_list[0]).group(1)
                     candidate = c
     planned_hours = all_hours - studied_hours - disobey_hours # not greater than 4
+    left_hours = 20 - studied_hours
     available_hours = 4 - planned_hours
+    available_hours = min(available_hours, left_hours)
     hours_enough = available_hours >= 2
     need_candidate = not hours_enough and replace_flag
     if need_candidate:
