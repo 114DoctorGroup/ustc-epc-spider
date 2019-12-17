@@ -57,7 +57,7 @@ config.json内有四个bool字段："enable.situation_dialog", "enable.topical_d
 | stuno                   | 必填 字符串 你的学号                                         |
 | passwd                  | 必填 字符串 你的密码 必须是研究生信息平台自己的，不是统一认证的密码。 |
 | verbose                 | 必填 bool 是否实时在stdout输出余课的周数                     |
-| enable.loop             | 必填 bool 是否在抢到课后继续跑 （不稳定，建议设为false）     |
+| enable.loop             | 必填 bool 是否在抢课操作后继续跑 （若设为True，则建议每天晚上看一下 以免选到了第二天上不了的课）     |
 | enable.order            | 必填 bool 是否启用选课 设为false的话，只会输出余课周数，而不会抢课 |
 | enable.replace          | 必填 bool 是否启用换课 当可用预约学时不足，且此项启用时，程序会考虑退掉已选的课，并换成更早的课 |
 | enable.duplicate        | 必填 bool 是否允许重复 如果你不想选已经上过的课，可将此项设为false |
