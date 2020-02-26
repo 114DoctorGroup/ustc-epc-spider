@@ -339,7 +339,7 @@ while True:
             continue
         res = check_earliest_course(s, page+'&isall=some')
         if res is None:
-            logger.default_logger.log('Some error ocurred：We\'ll try again')
+            logger.default_logger.log('未查找到课程 稍后重试')
             continue
         if verbose_mode:
             print(str(res.week), end='\t', flush=True)
