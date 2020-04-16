@@ -1,7 +1,7 @@
 {
     "Comment1":"填写学号姓名",
-    "stuno" : "SA19011056",
-    "passwd": "xxxxxx",
+    "stuno" : "SA19011157",
+    "passwd": "xxxx",
     
     "Comment2": "是否选课，是：true或否：false",
     "enable.order" : true,
@@ -19,5 +19,9 @@
     "replace_candidate": "",
     
     "Comment6": "不想选课的时间，格式：周(一/二/三/四/五)(上午/下午/晚上)",
-    "banned_time": ["周二上午", "周三下午", "周三晚上", "周四上午", "周四下午", "周五上午", "周五下午"]
+    "banned_time": ["周二上午", "周三下午", "周三晚上", "周四上午", "周五上午", "周五下午"],
+
+    "comment7" : "科大邮箱地址以及密码",
+    "ustc_mail" : "ypluo@mail.ustc.edu.cn",
+    "mail_passwd" : "xxxxx"
 }

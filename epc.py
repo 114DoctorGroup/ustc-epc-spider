@@ -5,6 +5,7 @@ import json
 from os import system
 from datetime import datetime, timedelta
 import check
+import mail
 
 
 # constant parameter of epc website
@@ -54,9 +55,9 @@ def check_study_hours(s):
     form_list_raw = form_tag_patt.findall(status_raw)[1::] # remove the first form, which is not a course
     for form in form_list_raw:
         td_list = td_tag_patt.findall(form[0])
-        dt_match = datetime_patt.search(td_list[6])
+        dt_match = datetime_patt.search(td_list[7])
         dt = datetime(int(dt_match.group(1)),int(dt_match.group(2)),int(dt_match.group(3)),int(dt_match.group(4)),int(dt_match.group(5)))
-        planned = '预约中' in td_list[9]
+        planned = '预约中' in td_list[10]
         if len(replace_scandidate) > 0:
             nm = name_in_td_patt.search(td_list[0]).group(1)
             if(planned and replace_scandidate in nm):
@@ -67,11 +68,11 @@ def check_study_hours(s):
             if candidate_params is None: # 当前还没有替换对象
                 candidate_dt = dt
                 candidate_params = form[1]
-                candidate_name = name_in_td_patt.search(td_list[0]).group(1)
+                candidate_name = name_in_td_patt.search(td_list[1]).group(1)
             elif dt > candidate_dt: # 用时间最晚的来作为替换对象
                 candidate_dt = dt
                 candidate_params = form[1]
-                candidate_name = name_in_td_patt.search(td_list[0]).group(1)
+                candidate_name = name_in_td_patt.search(td_list[1]).group(1)
             else:
                 pass
             
@@ -100,7 +101,7 @@ def find_alternative(s:requests.Session, page_url:str, type_code:int):
     all_course_form = course_form_patt2.findall(page_raw)
     
     if len(all_course_form) == 0:
-        exit(-1)
+        return None
         
     for course_form in all_course_form:
         course_params = course_form_patt.search(course_form).group(2)
@@ -130,8 +131,9 @@ def order(course_params: str):
     book_form = {'submit_type':'book_submit',
                 '截止日期':'end_date'}
     course_path = root_site + '/' + course_params
-    res = s.post(course_path,book_form)
+    res = s.post(course_path, book_form)
     succeed= not '操作失败' in res.text
+    mail.SendMail("你已选上新课程", sender, mail_passwd)
     return succeed
 
 def cancel(cancel_params: str):
@@ -207,17 +209,17 @@ def OrderCourseLoop(s):
             if(not enable_array[i]):
                 continue
                 
-            res = find_alternative(s, page+'&isall=some', i)
+            res = find_alternative(s, page, i)
 
             if res is not None:
                 if available_hours > 0:
                     smart_order(res[1])
                     available_hours, candidate_dt, candidate_params, candidate_name = check_study_hours(s)
-                elif res[0].day < candidate_dt.day:
+                elif candidate_dt.month > res[0].month or (candidate_dt.month == res[0].month and candidate_dt.day > res[0].day):
                     print('发现日期更早的可替代课程：' + class_type[i] + " " + str(res[0]))
                     smart_order(res[1])
                     available_hours, candidate_dt, candidate_params, candidate_name = check_study_hours(s)
-                elif res[0].day == candidate_dt.day:
+                elif candidate_dt.month == res[0].month and candidate_dt.day == res[0].day:
                     print('发现同一天的替代课程：' + class_type[i] + " " + str(res[0]))
                 else:
                     pass
@@ -236,6 +238,9 @@ if __name__ == "__main__":
     banned_time = js['banned_time']
     enable_array = [js['enable.situational_dialog'], js['enable.drama'], js['enable.topical_discuss'], js['enable.debate']]
     
+    sender = js["ustc_mail"]
+    mail_passwd = js["mail_passwd"]
+
     # candidate course to replace, global parameters
     available_hours = 0
     candidate_dt = None
