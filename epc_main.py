@@ -126,6 +126,9 @@ def check_study_hours(s):
     for form in form_list_raw:
         try:
             td_list = td_tag_patt.findall(form[0])
+            # remove the zoom column
+            if 'zoom' in td_list[0]:
+                td_list = td_list[1::]
             studied = '已刷卡上课' in td_list[9]
             planned = '预约中' in td_list[9]
             dt_match = datetime_patt.search(td_list[6])
